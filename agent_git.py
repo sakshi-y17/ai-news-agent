@@ -37,7 +37,7 @@ async def main():
         return
 
     bot = Bot(token=TOKEN)
-    async with genai.Client(api_key=KEY).aio as client:
+    async with genai.Client(api_key=KEY, http_options={'api_version': 'v1'}) as client:
         
         await bot.send_message(chat_id=CHAT_ID, text="<b>🌍 GLOBAL & INDIA TECH BRIEFING</b>", parse_mode="HTML")
         await asyncio.sleep(5)
@@ -65,5 +65,6 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
+
 
 
