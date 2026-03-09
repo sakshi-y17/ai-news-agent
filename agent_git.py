@@ -17,7 +17,7 @@ FEEDS = {
 }
 
 async def get_summary(client, category, context):
-    # SWITCHED TO 1.5-FLASH for higher quota limits
+    # Updated model ID to match Google GenAI SDK requirements
     prompt = f"Summarize these {category} updates for a developer in 3 bullets: {context}"
     try:
         response = await asyncio.wait_for(
@@ -62,3 +62,4 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
+
