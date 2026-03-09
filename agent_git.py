@@ -4,7 +4,7 @@ import asyncio
 from telegram import Bot
 from google import genai
 
-# --- CONFIGURATION ---
+# --- CONFIG ---
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
 CHAT_ID = os.environ.get("CHAT_ID")
 GEMINI_KEY = os.environ.get("GEMINI_KEY")
@@ -16,53 +16,46 @@ FEEDS = {
     "India Tech": "https://economictimes.indiatimes.com/tech/rssfeeds/1335720.cms"
 }
 
-# Initialize
-bot = Bot(token=TELEGRAM_TOKEN)
-ai_client = genai.Client(api_key=GEMINI_KEY).aio
+# Use a context manager for the client to ensure it stays open
+async def run_agent():
+    async with genai.Client(api_key=GEMINI_KEY).aio as ai_client:
+        bot = Bot(token=TELEGRAM_TOKEN)
+        
+        print("🚀 Sending Header...")
+        await bot.send_message(chat_id=CHAT_ID, text="<b>🌍 GLOBAL & INDIA TECH BRIEFING</b>", parse_mode="HTML")
+        await asyncio.sleep(3)
 
-async def generate_ai_summary(category, raw_context):
-    india_instruction = "Focus heavily on Indian IT hubs like Bangalore, Pune, and startups." if category == "India Tech" else ""
-    prompt = f"""
-    Summarize these {category} updates for a developer.
-    {india_instruction}
-    STRICT RULE: Maximum 3 bullet points. Under 150 words.
-    Context: {raw_context}
-    """
-    response = await ai_client.models.generate_content(model="gemini-2.5-flash", contents=prompt)
-    return response
+        for category, url in FEEDS.items():
+            try:
+                print(f"📡 Processing {category}...")
+                feed = feedparser.parse(url)
+                stories = feed.entries[:3]
+                
+                context = "No new stories found. Summarize general tech trends for 2026."
+                if stories:
+                    context = "\n".join([f"Title: {s.title}\nLink: {s.link}" for s in stories])
 
-async def send_briefing():
-    print("🤖 Starting Research...")
-    
-    # Send Header
-    await bot.send_message(chat_id=CHAT_ID, text="<b>🌍 GLOBAL & INDIA TECH BRIEFING</b>", parse_mode="HTML")
-    await asyncio.sleep(2)
+                prompt = f"Summarize these {category} updates for a developer (max 3 bullets): {context}"
+                
+                # Await the AI response
+                response = await ai_client.models.generate_content(
+                    model="gemini-2.5-flash", 
+                    contents=prompt
+                )
+                
+                if response and response.text:
+                    clean_text = response.text.replace('<', '&lt;').replace('>', '&gt;')
+                    msg = f"<b>📍 {category}</b>\n{clean_text}"
+                    await bot.send_message(chat_id=CHAT_ID, text=msg, parse_mode="HTML")
+                    print(f"✅ {category} sent!")
+                else:
+                    print(f"⚠️ {category} returned no text from AI.")
 
-    for category, url in FEEDS.items():
-        try:
-            print(f"📡 Fetching {category}...")
-            feed = feedparser.parse(url)
-            stories = feed.entries[:3]
-            
-            if not stories:
-                raw_context = f"No recent news for {category}. Summarize 2026 tech trends."
-            else:
-                raw_context = "\n".join([f"Title: {s.title}\nLink: {s.link}" for s in stories])
-            
-            response = await generate_ai_summary(category, raw_context)
-            clean_text = response.text.replace('<', '&lt;').replace('>', '&gt;')
-            
-            msg = f"<b>📍 {category}</b>\n{clean_text}"
-            await bot.send_message(chat_id=CHAT_ID, text=msg, parse_mode="HTML")
-            
-            print(f"✅ Sent {category}")
-            # The 7-second sleep to prevent Telegram spam blocks
-            await asyncio.sleep(7) 
-            
-        except Exception as e:
-            print(f"❌ Error in {category}: {e}")
+                # Wait 10 seconds between categories to avoid Telegram rate limits
+                await asyncio.sleep(10)
 
-    print("✅ All briefings processed!")
+            except Exception as e:
+                print(f"❌ Error in {category}: {e}")
 
 if __name__ == "__main__":
-    asyncio.run(send_briefing())
+    asyncio.run(run_agent())
