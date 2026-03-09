@@ -1,0 +1,4 @@
+feedparser
+tenacity
+python-telegram-bot
+google-genai
