@@ -17,17 +17,20 @@ FEEDS = {
 }
 
 async def get_summary(client, category, context):
-    # Updated model ID to match Google GenAI SDK requirements
+    # This is the most widely supported model ID for the new SDK
+    model_id = "gemini-1.5-flash" 
     prompt = f"Summarize these {category} updates for a developer in 3 bullets: {context}"
     try:
         response = await asyncio.wait_for(
-            client.models.generate_content(model="gemini-1.5-flash", contents=prompt),
+            client.models.generate_content(model=model_id, contents=prompt),
             timeout=40
         )
         return response.text if response else "No summary generated."
     except Exception as e:
+        # If it still fails, the log will tell us exactly why
+        print(f"DEBUG: Attempted model {model_id} - Error: {e}")
         return f"⚠️ AI Error: {str(e)}"
-
+        
 async def main():
     if not all([TOKEN, CHAT_ID, KEY]):
         print("❌ ERROR: Missing Secrets!")
@@ -62,4 +65,5 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
+
 
