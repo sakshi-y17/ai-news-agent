@@ -25,18 +25,44 @@ async def generate_ai_summary(category, raw_context):
     return await ai_client.models.generate_content(model="gemini-2.5-flash", contents=prompt)
 
 async def send_briefing():
+    print("🤖 Researching...")
+    
+    # 1. Send Header
     await bot.send_message(chat_id=CHAT_ID, text="<b>🌍 GLOBAL & INDIA TECH BRIEFING</b>", parse_mode="HTML")
+    await asyncio.sleep(2) # Short pause after header
+
     for category, url in FEEDS.items():
         try:
+            print(f"📡 Fetching {category}...")
             feed = feedparser.parse(url)
             stories = feed.entries[:3]
-            raw_context = "\n".join([f"Title: {s.title}\nLink: {s.link}" for s in stories]) if stories else "General tech trends."
+            
+            # If feed is slow or empty, provide fallback context
+            if not stories:
+                raw_context = f"No specific recent news for {category}. Summarize the general 2026 outlook for this sector in India/Global."
+            else:
+                raw_context = "\n".join([f"Title: {s.title}\nLink: {s.link}" for s in stories])
+            
+            # 3. AI Summary
             response = await generate_ai_summary(category, raw_context)
-            msg = f"<b>📍 {category}</b>\n{response.text.replace('<', '&lt;').replace('>', '&gt;')}"
+            
+            # 4. Clean and Send
+            clean_text = response.text.replace('<', '&lt;').replace('>', '&gt;')
+            msg = f"<b>📍 {category}</b>\n{clean_text}"
+            
             await bot.send_message(chat_id=CHAT_ID, text=msg, parse_mode="HTML")
-            await asyncio.sleep(5)
+            print(f"✅ Sent {category}")
+            
+            # INCREASE THIS SLEEP: Give Telegram 5-7 seconds to process each category
+            await asyncio.sleep(7) 
+            
         except Exception as e:
-            print(f"Error: {e}")
+            print(f"❌ Error in {category}: {e}")
+            # Even if it fails, wait before the next one
+            await asyncio.sleep(2)
+
+    print("✅ All briefings processed!"))
 
 if __name__ == "__main__":
+
     asyncio.run(send_briefing())
