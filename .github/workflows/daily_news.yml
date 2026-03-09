@@ -1,0 +1,24 @@
+name: Daily Tech News
+on:
+  schedule:
+    - cron: '30 5,17 * * *' # 11:00 AM & 11:00 PM IST (UTC 5:30 & 17:30)
+  workflow_dispatch: # This adds the 'Run' button for manual testing
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Run script
+        env:
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          CHAT_ID: ${{ secrets.CHAT_ID }}
+          GEMINI_KEY: ${{ secrets.GEMINI_KEY }}
+        run: python agent_git.py # Make sure this matches your filename!
